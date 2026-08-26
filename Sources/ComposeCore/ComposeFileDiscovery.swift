@@ -36,6 +36,13 @@ public enum ComposeFileDiscovery {
     "docker-compose.yml",
   ]
 
+  private static let overrides: [String: [String]] = [
+    "compose.yaml": ["compose.override.yaml", "compose.override.yml"],
+    "compose.yml": ["compose.override.yaml", "compose.override.yml"],
+    "docker-compose.yaml": ["docker-compose.override.yaml", "docker-compose.override.yml"],
+    "docker-compose.yml": ["docker-compose.override.yaml", "docker-compose.override.yml"],
+  ]
+
   public static func discover(options: ComposeLoadOptions, environment: [String: String]) throws
     -> [URL]
   {
@@ -45,8 +52,17 @@ public enum ComposeFileDiscovery {
 
     if let composeFile = environment["COMPOSE_FILE"], !composeFile.isEmpty {
       let separator = environment["COMPOSE_PATH_SEPARATOR"].flatMap(\.first) ?? ":"
-      return try composeFile.split(separator: separator).map {
-        try resolve(path: String($0), relativeTo: options.currentDirectory)
+      let paths = composeFile.split(separator: separator)
+      guard !paths.isEmpty else {
+        throw ComposeError("COMPOSE_FILE does not contain a Compose file path")
+      }
+      let baseDirectory =
+        options.projectDirectory.map {
+          URL(fileURLWithPath: $0, relativeTo: URL(fileURLWithPath: options.currentDirectory))
+            .standardizedFileURL.path
+        } ?? options.currentDirectory
+      return try paths.map {
+        try resolve(path: String($0), relativeTo: baseDirectory)
       }
     }
 
@@ -57,7 +73,15 @@ public enum ComposeFileDiscovery {
       for candidate in candidates {
         let url = directory.appendingPathComponent(candidate)
         if FileManager.default.fileExists(atPath: url.path) {
-          return [url.resolvingSymlinksInPath()]
+          var files = [url.standardizedFileURL]
+          if let overrideCandidates = overrides[candidate],
+            let override = overrideCandidates.lazy
+              .map(directory.appendingPathComponent)
+              .first(where: { FileManager.default.fileExists(atPath: $0.path) })
+          {
+            files.append(override.standardizedFileURL)
+          }
+          return files
         }
       }
       let parent = directory.deletingLastPathComponent()
@@ -74,7 +98,6 @@ public enum ComposeFileDiscovery {
       fileURLWithPath: expanded, relativeTo: URL(fileURLWithPath: directory, isDirectory: true)
     )
     .standardizedFileURL
-    .resolvingSymlinksInPath()
     guard FileManager.default.fileExists(atPath: url.path) else {
       throw ComposeError("Compose file does not exist: \(url.path)")
     }

@@ -1,0 +1,63 @@
+{
+  "version": "1.2.2",
+  "capturedWith": [
+    "container help create",
+    "container help build",
+    "container help image pull",
+    "container help stop",
+    "container help list",
+    "container help network create",
+    "container help network list",
+    "container help volume create",
+    "container help volume list",
+    "container help system start"
+  ],
+  "commands": {
+    "build": [
+      "--build-arg",
+      "--file",
+      "--no-cache",
+      "--platform",
+      "--progress",
+      "--pull",
+      "--quiet",
+      "--tag",
+      "--target"
+    ],
+    "create": [
+      "--cap-add",
+      "--cap-drop",
+      "--cpus",
+      "--dns",
+      "--dns-option",
+      "--dns-search",
+      "--entrypoint",
+      "--env",
+      "--init",
+      "--interactive",
+      "--label",
+      "--memory",
+      "--mount",
+      "--name",
+      "--network",
+      "--platform",
+      "--publish",
+      "--read-only",
+      "--rosetta",
+      "--shm-size",
+      "--tmpfs",
+      "--tty",
+      "--ulimit",
+      "--user",
+      "--workdir"
+    ],
+    "image pull": ["--platform"],
+    "list": ["--all", "--format"],
+    "network create": ["--internal", "--label", "--subnet", "--subnet-v6"],
+    "network list": ["--format"],
+    "stop": ["--time"],
+    "system start": ["--enable-kernel-install"],
+    "volume create": ["--label", "--opt"],
+    "volume list": ["--format"]
+  }
+}

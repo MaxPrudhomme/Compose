@@ -1,0 +1,16 @@
+services:
+  ironink:
+    image: puncto-ironink:dev
+    platform: linux/amd64
+    ports:
+      - '2405:2305'
+    environment:
+      AUTH_TOKEN: dev
+      MAX_TABS: '${MAX_TABS:-1}'
+      MAX_PENDING: '8'
+      QUEUE_TIMEOUT: 10s
+      BROWSER_START_TIMEOUT: 15s
+      RECYCLE_AFTER: '${RECYCLE_AFTER:-500}'
+      LOG_LEVEL: info
+    cpus: 1
+    mem_limit: 1g

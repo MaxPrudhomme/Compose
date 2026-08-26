@@ -58,6 +58,11 @@ public enum JSONValue: Equatable, Sendable {
     return value
   }
 
+  public var integerValue: Int64? {
+    guard case .integer(let value) = self else { return nil }
+    return value
+  }
+
   public subscript(key: String) -> JSONValue? {
     guard case .object(let object) = self else { return nil }
     return object[key]

@@ -38,6 +38,9 @@ public enum EnvironmentFile {
       }
 
       var value = String(line[line.index(after: equals)...]).trimmingCharacters(in: .whitespaces)
+      if let comment = inlineCommentStart(in: value) {
+        value = String(value[..<comment]).trimmingCharacters(in: .whitespaces)
+      }
       if value.count >= 2, value.first == "'", value.last == "'" {
         value = String(value.dropFirst().dropLast())
       } else {
@@ -48,8 +51,6 @@ public enum EnvironmentFile {
             .replacingOccurrences(of: "\\n", with: "\n")
             .replacingOccurrences(of: "\\r", with: "\r")
             .replacingOccurrences(of: "\\t", with: "\t")
-        } else if let comment = inlineCommentStart(in: value) {
-          value = String(value[..<comment]).trimmingCharacters(in: .whitespaces)
         }
         value = try Interpolator(environment: environment).interpolate(value)
       }
@@ -60,16 +61,38 @@ public enum EnvironmentFile {
 
   private static func isValidName(_ value: String) -> Bool {
     guard let first = value.first, first == "_" || first.isLetter else { return false }
-    return value.dropFirst().allSatisfy { $0 == "_" || $0.isLetter || $0.isNumber }
+    return value.dropFirst().allSatisfy {
+      $0 == "_" || $0 == "." || $0 == "-" || $0.isLetter || $0.isNumber
+    }
   }
 
   private static func inlineCommentStart(in value: String) -> String.Index? {
     var previousWasWhitespace = false
+    var quote: Character?
+    var escaped = false
     for index in value.indices {
-      if value[index] == "#", previousWasWhitespace {
+      let character = value[index]
+      if escaped {
+        escaped = false
+        previousWasWhitespace = character.isWhitespace
+        continue
+      }
+      if character == "\\", quote == "\"" {
+        escaped = true
+        previousWasWhitespace = false
+        continue
+      }
+      if character == "'" || character == "\"" {
+        if quote == character {
+          quote = nil
+        } else if quote == nil {
+          quote = character
+        }
+      }
+      if character == "#", quote == nil, previousWasWhitespace {
         return index
       }
-      previousWasWhitespace = value[index].isWhitespace
+      previousWasWhitespace = character.isWhitespace
     }
     return nil
   }

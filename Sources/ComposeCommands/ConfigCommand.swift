@@ -47,6 +47,9 @@ public struct ConfigCommand: ParsableCommand {
     }
 
     let project = try ComposeLoader().load(options: options.loadOptions())
+    for issue in ComposeCompatibility.issues(in: project) {
+      FileHandle.standardError.write(Data("warning: \(issue.description)\n".utf8))
+    }
     if services {
       for service in project.serviceNames { print(service) }
     } else if profiles {
@@ -65,9 +68,17 @@ public struct ConfigCommand: ParsableCommand {
   private func printCapabilities() throws {
     let executable = try ContainerExecutableResolver().resolve()
     let cli = ContainerCLI(executable: executable, runner: FoundationProcessRunner())
-    let capabilities = ContainerCapabilities.known(for: try cli.version())
+    let capabilities = CapabilityReport(
+      appleContainer: ContainerCapabilities.known(for: try cli.version()),
+      compose: try ComposeCompatibility.publishedMatrix()
+    )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     print(String(decoding: try encoder.encode(capabilities), as: UTF8.self))
   }
+}
+
+private struct CapabilityReport: Codable {
+  let appleContainer: ContainerCapabilities
+  let compose: ComposeCompatibilityMatrix
 }

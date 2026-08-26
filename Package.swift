@@ -21,10 +21,12 @@ let package = Package(
   targets: [
     .target(
       name: "ComposeCore",
-      dependencies: ["Yams"]
+      dependencies: ["Yams"],
+      resources: [.copy("Resources/compose-compatibility.json")]
     ),
     .target(
-      name: "AppleContainerDriver"
+      name: "AppleContainerDriver",
+      dependencies: ["ComposeCore"]
     ),
     .target(
       name: "ComposeCommands",
@@ -52,7 +54,7 @@ let package = Package(
     ),
     .testTarget(
       name: "ComposeCommandTests",
-      dependencies: ["ComposeCommands"]
+      dependencies: ["ComposeCommands", "ComposeCore", "AppleContainerDriver"]
     ),
   ],
   swiftLanguageModes: [.v6]

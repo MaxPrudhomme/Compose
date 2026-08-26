@@ -15,7 +15,8 @@ public struct ContainerExecutableResolver {
 
     if let path = environment["PATH"] {
       for directory in path.split(separator: ":", omittingEmptySubsequences: false) {
-        let base = directory.isEmpty ? FileManager.default.currentDirectoryPath : String(directory)
+        guard !directory.isEmpty else { continue }
+        let base = String(directory)
         let candidate = URL(fileURLWithPath: base, isDirectory: true).appendingPathComponent(
           "container"
         ).path
@@ -64,6 +65,15 @@ public struct ContainerCapabilities: Codable, Equatable, Sendable {
   public let serviceAliases: Bool
   public let restartPolicies: Bool
   public let ongoingHealth: Bool
+  public let tmpfs: Bool
+  public let multipleNetworks: Bool
+  public let dns: Bool
+  public let readOnlyRoot: Bool
+  public let initProcess: Bool
+  public let linuxCapabilities: Bool
+  public let ulimits: Bool
+  public let publishedSockets: Bool
+  public let stats: Bool
 
   public static func known(for version: ContainerVersion) -> ContainerCapabilities {
     ContainerCapabilities(
@@ -73,7 +83,16 @@ public struct ContainerCapabilities: Codable, Equatable, Sendable {
       namedVolumes: version.isSupported,
       serviceAliases: false,
       restartPolicies: false,
-      ongoingHealth: false
+      ongoingHealth: false,
+      tmpfs: version.isSupported,
+      multipleNetworks: version.isSupported,
+      dns: version.isSupported,
+      readOnlyRoot: version.isSupported,
+      initProcess: version.isSupported,
+      linuxCapabilities: version.isSupported,
+      ulimits: version.isSupported,
+      publishedSockets: version.isSupported,
+      stats: version.isSupported
     )
   }
 }
@@ -87,32 +106,63 @@ public struct ContainerDoctorReport: Codable, Equatable, Sendable {
   public let capabilities: ContainerCapabilities
 }
 
-public struct ContainerCLI<Runner: ProcessRunning> {
+public final class ContainerCLI<Runner: ProcessRunning> {
   public let executable: String
   private let runner: Runner
+  private let versionLock = NSLock()
+  private var cachedVersion: ContainerVersion?
 
   public init(executable: String, runner: Runner) {
     self.executable = executable
     self.runner = runner
   }
 
-  public func invoke(_ arguments: [String]) throws -> ProcessResult {
-    try runner.run(executable: executable, arguments: arguments, environment: nil)
+  public func invoke(
+    _ arguments: [String],
+    options: ProcessOptions = .init()
+  ) throws -> ProcessResult {
+    try runner.run(
+      executable: executable, arguments: arguments, environment: nil, options: options)
+  }
+
+  @discardableResult
+  public func invokeChecked(
+    _ arguments: [String],
+    options: ProcessOptions = .init()
+  ) throws -> ProcessResult {
+    let result = try invoke(arguments, options: options)
+    guard result.exitCode == 0 else {
+      let detail = [bounded(result.stdout), bounded(result.stderr)]
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
+      throw ContainerCLIError.commandFailed(
+        arguments: CommandRedaction.redact(result.arguments),
+        exitCode: result.exitCode,
+        detail: detail)
+    }
+    return result
   }
 
   public func version() throws -> ContainerVersion {
-    let result = try invoke(["--version"])
-    guard result.exitCode == 0 else {
-      throw ContainerCLIError.commandFailed(
-        arguments: result.arguments, exitCode: result.exitCode, detail: bounded(result.stderr))
-    }
-    return try ContainerVersion(rawValue: result.stdout)
+    if let cached = versionLock.withLock({ cachedVersion }) { return cached }
+    let result = try invokeChecked(["--version"])
+    let version = try ContainerVersion(rawValue: result.stdout)
+    versionLock.withLock { cachedVersion = version }
+    return version
   }
 
   public func doctor() throws -> ContainerDoctorReport {
     let version = try version()
     let status = try invoke(["system", "status", "--format", "json"])
-    let detail = status.exitCode == 0 ? bounded(status.stdout) : bounded(status.stderr)
+    let output = bounded(status.stdout)
+    let error = bounded(status.stderr)
+    var detail = [output, error].filter { !$0.isEmpty }.joined(separator: "\n")
+    if status.exitCode != 0,
+      detail.localizedCaseInsensitiveContains("unregistered")
+        || detail.localizedCaseInsensitiveContains("stopped")
+    {
+      detail += "\nRun 'container system start' to initialize the Apple Container system."
+    }
     return ContainerDoctorReport(
       executable: executable,
       version: version.rawValue,
@@ -146,11 +196,7 @@ public struct ContainerCLI<Runner: ProcessRunning> {
 
   private func list<T: Decodable>(_ arguments: [String], as type: T.Type) throws -> T {
     let version = try version()
-    let result = try invoke(arguments)
-    guard result.exitCode == 0 else {
-      throw ContainerCLIError.commandFailed(
-        arguments: result.arguments, exitCode: result.exitCode, detail: bounded(result.stderr))
-    }
+    let result = try invokeChecked(arguments)
     return try RuntimeOutputDecoder.decode(
       type, from: result.standardOutput, command: arguments, containerVersion: version.rawValue)
   }

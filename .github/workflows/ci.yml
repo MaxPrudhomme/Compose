@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Format
+        run: swift-format lint --strict --recursive Package.swift Sources Tests
+      - name: Test
+        run: swift test
+      - name: Release build
+        run: swift build -c release

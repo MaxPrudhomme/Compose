@@ -1,0 +1,7 @@
+services:
+  app:
+    image: alpine:3.22
+    env_file: base.env
+    environment:
+      KEY: inline-base
+      BASE_INLINE: present

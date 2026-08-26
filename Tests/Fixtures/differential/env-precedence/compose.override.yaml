@@ -1,0 +1,6 @@
+services:
+  app:
+    env_file:
+      - override.env
+    environment:
+      OVERRIDE_INLINE: present

@@ -43,6 +43,7 @@ public struct ProjectPlanner {
   public func plan(
     project: ComposeProject,
     currentContainers: [CurrentContainer],
+    refreshedServices: Set<String> = [],
     options: ReconciliationOptions = .init()
   ) throws -> [ReconciliationAction] {
     guard !options.forceRecreate || !options.noRecreate else {
@@ -55,7 +56,7 @@ public struct ProjectPlanner {
     let owned = currentContainers.filter { $0.labels[ComposeLabels.project] == project.name }
     var actions: [ReconciliationAction] = []
     for serviceName in try dependencyOrder(services: services) {
-      guard let service = services[serviceName] else { continue }
+      guard services[serviceName] != nil else { continue }
       let matches = owned.filter {
         $0.labels[ComposeLabels.service] == serviceName && $0.labels[ComposeLabels.oneoff] != "true"
       }
@@ -65,7 +66,7 @@ public struct ProjectPlanner {
         )
       }
 
-      let hash = try ServiceConfigHasher.hash(service: service)
+      let hash = try ServiceConfigHasher.hash(project: project, serviceName: serviceName)
       let labels = ComposeLabels.container(
         projectName: project.name,
         serviceName: serviceName,
@@ -79,7 +80,7 @@ public struct ProjectPlanner {
       }
 
       let matchesConfiguration = existing.labels[ComposeLabels.configHash] == hash
-      if options.forceRecreate {
+      if options.forceRecreate || (refreshedServices.contains(serviceName) && !options.noRecreate) {
         actions.append(
           .recreate(service: serviceName, containerID: existing.id, hash: hash, labels: labels))
       } else if matchesConfiguration {

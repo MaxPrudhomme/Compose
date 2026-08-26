@@ -5,7 +5,11 @@ public struct ComposeCommand: ParsableCommand {
     commandName: "compose",
     abstract: "Define and run multi-container applications with Apple Container.",
     version: BuildInfo.version,
-    subcommands: [VersionCommand.self, DoctorCommand.self, ConfigCommand.self]
+    subcommands: [
+      VersionCommand.self, DoctorCommand.self, ConfigCommand.self,
+      UpCommand.self, CreateCommand.self, StartCommand.self, StopCommand.self,
+      RestartCommand.self, DownCommand.self, PsCommand.self,
+    ]
   )
 
   @OptionGroup
@@ -23,7 +27,7 @@ public struct StandaloneComposeCommand: ParsableCommand {
     commandName: "container-compose",
     abstract: ComposeCommand.configuration.abstract,
     version: BuildInfo.version,
-    subcommands: [VersionCommand.self, DoctorCommand.self, ConfigCommand.self]
+    subcommands: ComposeCommand.configuration.subcommands
   )
 
   @OptionGroup

@@ -3,6 +3,32 @@ import Foundation
 import XCTest
 
 final class PlanningTests: XCTestCase {
+  func testProjectLockRejectsConcurrentMutationAndCanBeReleased() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "cc-lock-\(UUID().uuidString.prefix(8))", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let first = try ProjectLock.acquire(
+      projectName: "example", command: "up", workingDirectory: "/project",
+      lockDirectory: directory)
+    XCTAssertThrowsError(
+      try ProjectLock.acquire(
+        projectName: "example", command: "down", workingDirectory: "/project",
+        lockDirectory: directory)
+    ) { error in
+      let detail = String(describing: error)
+      XCTAssertTrue(detail.contains("already being modified"))
+      XCTAssertTrue(detail.contains("\"command\":\"up\""))
+    }
+
+    first.unlock()
+    let second = try ProjectLock.acquire(
+      projectName: "example", command: "down", workingDirectory: "/project",
+      lockDirectory: directory)
+    second.unlock()
+  }
+
   func testCanonicalHashIgnoresMappingOrderAndDetectsChanges() throws {
     let first: JSONValue = .object([
       "image": .string("alpine:3.22"),
@@ -19,10 +45,61 @@ final class PlanningTests: XCTestCase {
       try ServiceConfigHasher.hash(service: equivalent))
     XCTAssertNotEqual(
       try ServiceConfigHasher.hash(service: first), try ServiceConfigHasher.hash(service: changed))
-    XCTAssertNotEqual(
-      try ServiceConfigHasher.hash(service: first, resolvedImageIdentity: "sha256:one"),
-      try ServiceConfigHasher.hash(service: first, resolvedImageIdentity: "sha256:two")
+  }
+
+  func testProjectHashIncludesReferencedNetworkAndVolumeDefinitions() throws {
+    let service: JSONValue = .object([
+      "image": .string("alpine"),
+      "networks": .object(["backend": .null]),
+      "volumes": .array([
+        .object([
+          "type": .string("volume"), "source": .string("data"),
+          "target": .string("/data"),
+        ])
+      ]),
+    ])
+    let first = makeProject(
+      services: ["app": service],
+      networks: ["backend": .object(["name": .string("demo_backend")])],
+      volumes: ["data": .object(["name": .string("demo_data")])]
     )
+    let renamedNetwork = makeProject(
+      services: ["app": service],
+      networks: ["backend": .object(["name": .string("shared_backend")])],
+      volumes: ["data": .object(["name": .string("demo_data")])]
+    )
+    let renamedVolume = makeProject(
+      services: ["app": service],
+      networks: ["backend": .object(["name": .string("demo_backend")])],
+      volumes: ["data": .object(["name": .string("shared_data")])]
+    )
+
+    let firstHash = try ServiceConfigHasher.hash(project: first, serviceName: "app")
+    XCTAssertNotEqual(
+      firstHash, try ServiceConfigHasher.hash(project: renamedNetwork, serviceName: "app"))
+    XCTAssertNotEqual(
+      firstHash, try ServiceConfigHasher.hash(project: renamedVolume, serviceName: "app"))
+  }
+
+  func testExplicitImageRefreshRecreatesUnlessNoRecreateWasRequested() throws {
+    let services = ["app": JSONValue.object(["image": .string("alpine")])]
+    let project = makeProject(services: services)
+    let current = try [
+      matchingContainer(
+        project: project, service: "app", specification: services["app"]!, state: .running)
+    ]
+
+    let refreshed = try ProjectPlanner().plan(
+      project: project, currentContainers: current, refreshedServices: ["app"])
+    XCTAssertTrue(refreshed.contains { if case .recreate = $0 { true } else { false } })
+
+    let preserved = try ProjectPlanner().plan(
+      project: project,
+      currentContainers: current,
+      refreshedServices: ["app"],
+      options: .init(noRecreate: true)
+    )
+    XCTAssertTrue(preserved.contains { if case .noOp = $0 { true } else { false } })
   }
 
   func testPlannerCreatesInDependencyOrder() throws {
@@ -125,12 +202,19 @@ extension ReconciliationAction {
   }
 }
 
-private func makeProject(services: [String: JSONValue]) -> ComposeProject {
-  ComposeProject(
+private func makeProject(
+  services: [String: JSONValue],
+  networks: [String: JSONValue] = [:],
+  volumes: [String: JSONValue] = [:]
+) -> ComposeProject {
+  var model: [String: JSONValue] = ["name": .string("demo"), "services": .object(services)]
+  if !networks.isEmpty { model["networks"] = .object(networks) }
+  if !volumes.isEmpty { model["volumes"] = .object(volumes) }
+  return ComposeProject(
     name: "demo",
     workingDirectory: URL(fileURLWithPath: "/tmp/demo"),
     files: [URL(fileURLWithPath: "/tmp/demo/compose.yaml")],
-    model: .object(["name": .string("demo"), "services": .object(services)]),
+    model: .object(model),
     interpolationEnvironment: [:],
     declaredProfiles: []
   )
@@ -142,7 +226,8 @@ private func matchingContainer(
   specification: JSONValue,
   state: CurrentContainer.State
 ) throws -> CurrentContainer {
-  let hash = try ServiceConfigHasher.hash(service: specification)
+  let historicalProject = makeProject(services: [service: specification])
+  let hash = try ServiceConfigHasher.hash(project: historicalProject, serviceName: service)
   return CurrentContainer(
     id: "\(service)-id",
     state: state,

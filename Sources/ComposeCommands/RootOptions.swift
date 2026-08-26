@@ -25,8 +25,8 @@ public struct RootOptions: ParsableArguments {
   @Option(name: .customLong("progress"), help: "Output mode: auto, tty, plain, json, or quiet.")
   public var progress = "auto"
 
-  @Option(name: .customLong("parallel"), help: "Maximum independent operations.")
-  public var parallel = 2
+  @Option(name: .customLong("parallel"), help: "Lifecycle concurrency; v1 requires 1.")
+  public var parallel = 1
 
   public init() {}
 
@@ -46,8 +46,8 @@ public struct RootOptions: ParsableArguments {
   }
 
   public mutating func validate() throws {
-    guard parallel > 0 else {
-      throw ValidationError("--parallel must be greater than zero")
+    guard parallel == 1 else {
+      throw ValidationError("parallel lifecycle execution is not implemented; use --parallel 1")
     }
     guard ["auto", "tty", "plain", "json", "quiet"].contains(progress) else {
       throw ValidationError("--progress must be auto, tty, plain, json, or quiet")

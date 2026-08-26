@@ -1,0 +1,26 @@
+name: fixture.with.dots
+services:
+  app:
+    image: alpine:3.22
+    environment:
+      - FROM_BASE=1
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - x-flag=kept
+      - PASSTHROUGH
+    depends_on: [db]
+    ports:
+      - '8000-8002:8000-8002'
+      - '[::1]:8080:80'
+      - target: 81
+        published: 8081
+    volumes:
+      - './src:/app/src:ro'
+      - 'data:/data'
+  db:
+    image: alpine:3.22
+  reset:
+    image: alpine:3.22
+    environment:
+      DROP: me
+volumes:
+  data:

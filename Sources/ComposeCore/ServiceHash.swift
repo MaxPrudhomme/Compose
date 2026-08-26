@@ -2,13 +2,45 @@ import CryptoKit
 import Foundation
 
 public enum ServiceConfigHasher {
-  public static func hash(service: JSONValue, resolvedImageIdentity: String? = nil) throws -> String
-  {
-    var canonical = service
-    if let resolvedImageIdentity {
-      canonical = canonical.setting(
-        "x-apple-container-resolved-image", to: .string(resolvedImageIdentity))
+  public static func hash(service: JSONValue) throws -> String {
+    try hash(.object(["service": service]))
+  }
+
+  public static func hash(project: ComposeProject, serviceName: String) throws -> String {
+    guard let service = project.model["services"]?[serviceName] else {
+      throw ComposeError("service '\(serviceName)' is not defined")
     }
+    var canonical: [String: JSONValue] = ["service": service]
+
+    let networkNames = service["networks"]?.objectValue?.keys.sorted() ?? []
+    if !networkNames.isEmpty {
+      var networks: [String: JSONValue] = [:]
+      for name in networkNames {
+        if let definition = project.model["networks"]?[name] {
+          networks[name] = definition
+        }
+      }
+      canonical["networks"] = .object(networks)
+    }
+
+    let volumeNames = Set(
+      service["volumes"]?.arrayValue?.compactMap { volume in
+        volume["type"] == .string("volume") ? volume["source"]?.stringValue : nil
+      } ?? [])
+    if !volumeNames.isEmpty {
+      var volumes: [String: JSONValue] = [:]
+      for name in volumeNames.sorted() {
+        if let definition = project.model["volumes"]?[name] {
+          volumes[name] = definition
+        }
+      }
+      canonical["volumes"] = .object(volumes)
+    }
+
+    return try hash(.object(canonical))
+  }
+
+  private static func hash(_ canonical: JSONValue) throws -> String {
     let data = try JSONEncoder.compose(prettyPrinted: false).encode(canonical)
     return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
   }
