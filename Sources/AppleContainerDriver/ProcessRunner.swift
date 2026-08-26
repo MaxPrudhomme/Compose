@@ -199,8 +199,8 @@ public enum ProcessRunnerError: Error, Equatable, CustomStringConvertible {
 private final class SignalForwarder {
   private let interruptSource: DispatchSourceSignal
   private let terminateSource: DispatchSourceSignal
-  private let previousInterrupt: sig_t
-  private let previousTerminate: sig_t
+  private let previousInterrupt: sig_t?
+  private let previousTerminate: sig_t?
 
   init(process: Process) {
     previousInterrupt = Darwin.signal(SIGINT, SIG_IGN)

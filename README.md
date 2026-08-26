@@ -31,9 +31,9 @@ native Apple CLI, uses ownership labels for discovery, locks project mutations, 
 rejects fields whose semantics cannot yet be preserved. Unsupported `include` and
 cross-file `extends` also fail explicitly.
 
-Apple Container 1.2 does not provide Compose-style service-name discovery, so lifecycle
-commands reject multi-service projects by default. Projects that do not rely on service
-names can explicitly accept that limitation:
+Apple Container does not provide Compose-style bare service-name discovery on project
+networks, so lifecycle commands reject multi-service projects by default. Projects that
+do not rely on service names can explicitly accept that limitation:
 
 ```yaml
 x-apple-container:

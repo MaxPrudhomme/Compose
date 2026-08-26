@@ -8,7 +8,7 @@ public struct UpCommand: ParsableCommand {
     commandName: "up", abstract: "Create and start services using Apple Container.")
 
   @OptionGroup public var options: RootOptions
-  @Flag(name: [.customShort("d"), .long], help: "Run services in the background.")
+  @Flag(name: [.customShort("d"), .long], help: "Accepted for Compose compatibility.")
   public var detach = false
   @Flag(name: .long, help: "Build images before creating containers.") public var build = false
   @Flag(name: .long, help: "Never build images.") public var noBuild = false
@@ -27,7 +27,6 @@ public struct UpCommand: ParsableCommand {
   public init() {}
 
   public mutating func validate() throws {
-    guard detach else { throw ValidationError("attached up is not implemented; use --detach") }
     guard !build || !noBuild else {
       throw ValidationError("--build and --no-build are mutually exclusive")
     }

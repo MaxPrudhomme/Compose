@@ -84,6 +84,17 @@ final class ContainerCLITests: XCTestCase {
     }
   }
 
+  func testFoundationRunnerForwardsSignalsWithDefaultHandlers() throws {
+    let result = try FoundationProcessRunner().run(
+      executable: "/usr/bin/true",
+      arguments: [],
+      environment: nil,
+      options: .init(forwardSignals: true)
+    )
+
+    XCTAssertEqual(result.exitCode, 0)
+  }
+
   func testVersionAndCapabilities() throws {
     let runner = FakeRunner(results: [
       "--version": result(

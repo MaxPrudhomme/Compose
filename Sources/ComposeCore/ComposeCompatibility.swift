@@ -55,7 +55,7 @@ public enum ComposeCompatibility {
   public static func warnings(in project: ComposeProject) -> [String] {
     guard project.allowMissingServiceDNS, project.serviceNames.count > 1 else { return [] }
     return [
-      "Apple Container 1.2 does not provide Compose service-name discovery; proceeding because x-apple-container.allow-missing-service-dns is true"
+      "Apple Container does not provide Compose-style bare service-name discovery on project networks; proceeding because x-apple-container.allow-missing-service-dns is true"
     ]
   }
 
@@ -89,7 +89,7 @@ public enum ComposeCompatibility {
         .init(
           service: nil, field: "serviceNameDNS", state: .rejected,
           reason:
-            "Apple Container 1.2 does not provide Compose service-name discovery between containers"
+            "Apple Container does not provide Compose-style bare service-name discovery on project networks"
         ))
     }
 
@@ -208,7 +208,7 @@ public enum ComposeCompatibility {
         issues.append(
           .init(
             service: name, field: "networks.\(network).aliases", state: .rejected,
-            reason: "Apple Container 1.2 has no network-alias option"))
+            reason: "Apple Container has no network-alias option"))
       }
       for (network, attachment) in service["networks"]?.objectValue ?? [:] {
         for field in attachment.objectValue?.keys.sorted() ?? [] where field != "aliases" {

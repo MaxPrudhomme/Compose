@@ -23,4 +23,11 @@ final class CommandParsingTests: XCTestCase {
     XCTAssertEqual(command.options.files, ["compose.yml"])
     XCTAssertEqual(command.options.projectName, "demo")
   }
+
+  func testUpDoesNotRequireDetachFlag() throws {
+    let parsed = try ComposeCommand.parseAsRoot(["up"])
+    let command = try XCTUnwrap(parsed as? UpCommand)
+
+    XCTAssertFalse(command.detach)
+  }
 }
