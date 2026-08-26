@@ -1,0 +1,3 @@
+import ComposeCommands
+
+ComposeCommand.main()

@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "appleContainer": ">=1.2.0 <2.0.0",
+    "dockerComposeOracle": "5.4.0",
+    "schemaVersion": 1
+  },
+  "features": {
+    "anchorsAliasesAndMergeKeys": "native",
+    "configs": "planned",
+    "extendsSameFile": "emulated",
+    "extendsCrossFile": "planned",
+    "fileDiscovery": "emulated",
+    "healthReadiness": "planned",
+    "include": "planned",
+    "interpolation": "emulated",
+    "multiFileMerge": "planned",
+    "namedVolumes": "planned",
+    "networkAliases": "rejected",
+    "networks": "planned",
+    "ongoingHealth": "rejected",
+    "restartPolicies": "rejected",
+    "secrets": "planned",
+    "serviceNameDNS": "rejected"
+  },
+  "states": ["native", "emulated", "rejected", "planned"]
+}
