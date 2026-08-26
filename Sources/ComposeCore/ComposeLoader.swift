@@ -84,7 +84,8 @@ public struct ComposeLoader {
       files: files,
       model: normalized.model,
       interpolationEnvironment: interpolationEnvironment,
-      declaredProfiles: normalized.profiles
+      declaredProfiles: normalized.profiles,
+      allowMissingServiceDNS: normalized.allowMissingServiceDNS
     )
   }
 }
@@ -104,6 +105,7 @@ extension ComposeLoader {
   fileprivate struct NormalizedProject {
     let model: JSONValue
     let profiles: [String]
+    let allowMissingServiceDNS: Bool
   }
 
   fileprivate func parse(file: URL, environment: [String: String]) throws -> ParsedFile {
@@ -403,6 +405,7 @@ extension ComposeLoader {
         "top-level 'include' is parsed but not supported yet",
         location: sourceLocations[["include"]])
     }
+    let allowMissingServiceDNS = try allowMissingServiceDNS(from: root)
     root.removeValue(forKey: "version")
     root = removeExtensions(from: root)
 
@@ -472,7 +475,22 @@ extension ComposeLoader {
         }
       }
     }
-    return NormalizedProject(model: .object(root), profiles: declaredProfiles.sorted())
+    return NormalizedProject(
+      model: .object(root),
+      profiles: declaredProfiles.sorted(),
+      allowMissingServiceDNS: allowMissingServiceDNS)
+  }
+
+  fileprivate func allowMissingServiceDNS(from root: [String: JSONValue]) throws -> Bool {
+    guard let extensionValue = root["x-apple-container"] else { return false }
+    guard let extensionFields = extensionValue.objectValue else {
+      throw ComposeError("top-level 'x-apple-container' must be a mapping")
+    }
+    guard let value = extensionFields["allow-missing-service-dns"] else { return false }
+    guard case .bool(let allowed) = value else {
+      throw ComposeError("'x-apple-container.allow-missing-service-dns' must be a boolean")
+    }
+    return allowed
   }
 
   fileprivate func resolveExtends(

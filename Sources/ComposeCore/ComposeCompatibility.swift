@@ -47,7 +47,16 @@ public enum ComposeCompatibility {
   }
 
   public static func issues(in project: ComposeProject) -> [CompatibilityIssue] {
-    issues(in: project.model)
+    let issues = issues(in: project.model)
+    guard project.allowMissingServiceDNS else { return issues }
+    return issues.filter { $0.service != nil || $0.field != "serviceNameDNS" }
+  }
+
+  public static func warnings(in project: ComposeProject) -> [String] {
+    guard project.allowMissingServiceDNS, project.serviceNames.count > 1 else { return [] }
+    return [
+      "Apple Container 1.2 does not provide Compose service-name discovery; proceeding because x-apple-container.allow-missing-service-dns is true"
+    ]
   }
 
   public static func issues(in model: JSONValue) -> [CompatibilityIssue] {

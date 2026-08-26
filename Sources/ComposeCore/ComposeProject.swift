@@ -8,6 +8,7 @@ public struct ComposeProject: Equatable, Sendable {
   public let model: JSONValue
   public let interpolationEnvironment: [String: String]
   public let declaredProfiles: [String]
+  public let allowMissingServiceDNS: Bool
 
   public init(
     name: String,
@@ -15,7 +16,8 @@ public struct ComposeProject: Equatable, Sendable {
     files: [URL],
     model: JSONValue,
     interpolationEnvironment: [String: String],
-    declaredProfiles: [String]
+    declaredProfiles: [String],
+    allowMissingServiceDNS: Bool = false
   ) {
     self.name = name
     self.workingDirectory = workingDirectory
@@ -23,6 +25,7 @@ public struct ComposeProject: Equatable, Sendable {
     self.model = model
     self.interpolationEnvironment = interpolationEnvironment
     self.declaredProfiles = declaredProfiles
+    self.allowMissingServiceDNS = allowMissingServiceDNS
   }
 
   public var serviceNames: [String] {

@@ -47,6 +47,9 @@ public struct ConfigCommand: ParsableCommand {
     }
 
     let project = try ComposeLoader().load(options: options.loadOptions())
+    for warning in ComposeCompatibility.warnings(in: project) {
+      FileHandle.standardError.write(Data("warning: \(warning)\n".utf8))
+    }
     for issue in ComposeCompatibility.issues(in: project) {
       FileHandle.standardError.write(Data("warning: \(issue.description)\n".utf8))
     }

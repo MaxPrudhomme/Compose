@@ -32,8 +32,15 @@ rejects fields whose semantics cannot yet be preserved. Unsupported `include` an
 cross-file `extends` also fail explicitly.
 
 Apple Container 1.2 does not provide Compose-style service-name discovery, so lifecycle
-commands currently reject multi-service projects instead of starting a stack whose
-services cannot reach each other by name.
+commands reject multi-service projects by default. Projects that do not rely on service
+names can explicitly accept that limitation:
+
+```yaml
+x-apple-container:
+  allow-missing-service-dns: true
+```
+
+The CLI prints a warning whenever this opt-in is active for a multi-service project.
 
 Apple Container owns every runtime resource. This CLI invokes only the public
 `container` executable with argument arrays; it has no daemon or secondary state

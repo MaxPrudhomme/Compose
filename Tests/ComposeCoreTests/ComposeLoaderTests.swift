@@ -653,6 +653,53 @@ final class ComposeLoaderTests: XCTestCase {
       XCTAssertThrowsError(try ComposeCompatibility.validateForExecution(project))
     }
   }
+
+  func testMissingServiceNameDNSCanBeExplicitlyAllowed() throws {
+    try withTemporaryDirectory { directory in
+      try write(
+        """
+        x-apple-container:
+          allow-missing-service-dns: true
+        services:
+          app:
+            image: alpine
+          db:
+            image: postgres
+        """,
+        to: directory.appendingPathComponent("compose.yaml"))
+
+      let project = try ComposeLoader().load(
+        options: .init(currentDirectory: directory.path, environment: [:]))
+
+      XCTAssertTrue(project.allowMissingServiceDNS)
+      XCTAssertNil(project.model["x-apple-container"])
+      XCTAssertFalse(
+        ComposeCompatibility.issues(in: project).contains { $0.field == "serviceNameDNS" })
+      XCTAssertEqual(ComposeCompatibility.warnings(in: project).count, 1)
+      XCTAssertNoThrow(try ComposeCompatibility.validateForExecution(project))
+    }
+  }
+
+  func testAllowMissingServiceNameDNSMustBeBoolean() throws {
+    try withTemporaryDirectory { directory in
+      try write(
+        """
+        x-apple-container:
+          allow-missing-service-dns: yes
+        services:
+          app:
+            image: alpine
+        """,
+        to: directory.appendingPathComponent("compose.yaml"))
+
+      XCTAssertThrowsError(
+        try ComposeLoader().load(
+          options: .init(currentDirectory: directory.path, environment: [:]))
+      ) { error in
+        XCTAssertTrue(String(describing: error).contains("must be a boolean"))
+      }
+    }
+  }
 }
 
 private func withTemporaryDirectory(_ body: (URL) throws -> Void) throws {

@@ -41,6 +41,7 @@ public struct UpCommand: ParsableCommand {
 
   public mutating func run() throws {
     let project = try ComposeLoader().load(options: options.loadOptions())
+    printCompatibilityWarnings(for: project)
     try ComposeCompatibility.validateForExecution(project)
     try withProjectLock(project: project, command: "up", dryRun: options.dryRun) {
       let lifecycle = try makeLifecycle()
@@ -96,6 +97,7 @@ public struct CreateCommand: ParsableCommand {
 
   public mutating func run() throws {
     let project = try ComposeLoader().load(options: options.loadOptions())
+    printCompatibilityWarnings(for: project)
     try ComposeCompatibility.validateForExecution(project)
     try withProjectLock(project: project, command: "create", dryRun: options.dryRun) {
       let lifecycle = try makeLifecycle()
@@ -298,5 +300,11 @@ private func printEvents(_ events: [LifecycleEvent], options: RootOptions) throw
     } else {
       print("\(scope)\(event.action)")
     }
+  }
+}
+
+private func printCompatibilityWarnings(for project: ComposeProject) {
+  for warning in ComposeCompatibility.warnings(in: project) {
+    FileHandle.standardError.write(Data("warning: \(warning)\n".utf8))
   }
 }

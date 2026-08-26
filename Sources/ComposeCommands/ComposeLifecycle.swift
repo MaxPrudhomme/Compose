@@ -529,7 +529,8 @@ public final class ComposeLifecycle<Runner: ProcessRunning> {
       files: project.files,
       model: model,
       interpolationEnvironment: project.interpolationEnvironment,
-      declaredProfiles: project.declaredProfiles
+      declaredProfiles: project.declaredProfiles,
+      allowMissingServiceDNS: project.allowMissingServiceDNS
     )
   }
 
